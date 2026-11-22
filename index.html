@@ -25,6 +25,7 @@
   .time { font-weight:700; color:var(--accent); min-width:52px; }
   .meal input { flex:1; font:inherit; padding:8px; border:1px solid var(--muted); border-radius:8px; background:var(--card); color:var(--text); }
   .btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:12px; font-size:1rem; cursor:pointer; margin-top:8px; }
+  .btn:disabled { opacity:.6; }
   .status { font-size:.9rem; color:var(--muted); margin-top:8px; min-height:1.2em; }
   .disclaimer { font-size:.85rem; color:var(--muted); font-style:italic; margin-top:16px; }
   .hidden { display:none; }
@@ -33,7 +34,7 @@
 <body>
 
 <header>
-  <h1>Faut Gbâchi</h1>
+  <h1>Fo-Gbâchi</h1>
   <p>On fait sport dèh !</p>
 </header>
 
@@ -63,7 +64,21 @@
   </section>
 </main>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCzXACmn898mW6FBvrmzwsuW1HsmmQyeoU",
+    authDomain: "faut-gbachi.firebaseapp.com",
+    projectId: "faut-gbachi",
+    storageBucket: "faut-gbachi.firebasestorage.app",
+    messagingSenderId: "335040853963",
+    appId: "1:335040853963:web:99eb9233ba5949d6bf284e"
+  };
+
+  const db = getFirestore(initializeApp(firebaseConfig));
+
   const plans = {
     abs: { title:"Abdos", exercise:"Gainage + crunchs", details:"3 séries de 30 s de gainage, puis 3 x 15 crunchs.",
       meals:[{time:"08:00",meal:"Flocons d'avoine, œufs, fruit"},{time:"13:00",meal:"Riz complet, poulet, légumes"},{time:"19:30",meal:"Poisson, patate douce, salade"}] },
@@ -98,18 +113,26 @@
     document.getElementById("meals-label").textContent = "Repas (" + currentMeals.length + " prises par jour)";
   }
 
-  function showPlan(id) {
+  async function showPlan(id) {
     currentId = id;
     const p = plans[id];
-    currentMeals = JSON.parse(JSON.stringify(p.meals));
     document.getElementById("plan-title").textContent = p.title;
     document.getElementById("plan-exercise").textContent = p.exercise;
     document.getElementById("plan-details").textContent = p.details;
-    statusEl.textContent = "";
-    renderMeals();
+    statusEl.textContent = "Chargement...";
     home.classList.add("hidden");
     planSection.classList.remove("hidden");
     window.scrollTo(0, 0);
+
+    try {
+      const snap = await getDoc(doc(db, "plans", id));
+      currentMeals = snap.exists() ? snap.data().meals : JSON.parse(JSON.stringify(p.meals));
+      statusEl.textContent = "";
+    } catch (e) {
+      currentMeals = JSON.parse(JSON.stringify(p.meals));
+      statusEl.textContent = "Impossible de charger tes repas. Affichage des repas de base.";
+    }
+    renderMeals();
   }
 
   document.querySelectorAll(".objective").forEach(btn => {
@@ -122,8 +145,17 @@
     window.scrollTo(0, 0);
   });
 
-  document.getElementById("save").addEventListener("click", () => {
-    statusEl.textContent = "Test : les boutons fonctionnent. Enregistrement à venir.";
+  document.getElementById("save").addEventListener("click", async () => {
+    const btn = document.getElementById("save");
+    btn.disabled = true;
+    statusEl.textContent = "Enregistrement...";
+    try {
+      await setDoc(doc(db, "plans", currentId), { meals: currentMeals });
+      statusEl.textContent = "Repas enregistrés.";
+    } catch (e) {
+      statusEl.textContent = "Erreur : impossible d'enregistrer.";
+    }
+    btn.disabled = false;
   });
 </script>
 
