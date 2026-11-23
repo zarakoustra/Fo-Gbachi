@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fo-Gbâchi</title>
+<title>Faut Gbâchi</title>
 <style>
   :root { color-scheme: light dark; --bg:#f5f7f2; --card:#fff; --text:#1d2a1f; --muted:#5b6b5e; --accent:#2e7d32; --accent-soft:#e3f1e4; }
   @media (prefers-color-scheme: dark) {
@@ -21,9 +21,20 @@
   .back { background:none; border:none; color:var(--accent); font-size:1rem; padding:8px 0; cursor:pointer; }
   .label { font-size:.85rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
   .exo { background:var(--accent-soft); border-radius:10px; padding:12px; margin-bottom:10px; }
+  .exo-row { display:flex; gap:12px; align-items:center; }
+  .exo-row > div:last-child { flex:1; }
   .exo strong { display:block; margin-bottom:6px; }
-  .exo ul { margin:0 0 8px; padding-left:18px; font-size:.95rem; line-height:1.6; }
-  .video { display:inline-block; color:var(--accent); font-weight:600; text-decoration:none; font-size:.95rem; }
+  .exo ul { margin:0; padding-left:18px; font-size:.95rem; line-height:1.6; }
+  .fig { color:var(--accent); flex-shrink:0; }
+  .fig-squat .body { animation: squat 2s infinite ease-in-out; }
+  .fig-pushup .body { transform-origin: 60px 150px; transform-box: view-box; animation: pushup 2.4s infinite ease-in-out; }
+  .fig-crunch .upper { transform-origin: 60px 95px; transform-box: view-box; animation: crunch 2s infinite ease-in-out; }
+  .fig-run .body { animation: run 0.8s infinite ease-in-out; }
+  .fig-static .body { animation: none; }
+  @keyframes squat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(25px); } }
+  @keyframes pushup { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-25deg); } }
+  @keyframes crunch { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-20deg); } }
+  @keyframes run { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
   select, input[type=time] { font:inherit; padding:8px; border-radius:10px; border:1px solid var(--muted); background:var(--card); color:var(--text); }
   select { width:100%; margin-bottom:12px; padding:10px; }
   .meal { display:flex; gap:10px; align-items:center; background:var(--accent-soft); border-radius:10px; padding:10px; margin-bottom:8px; }
@@ -42,7 +53,7 @@
 <body>
 
 <header>
-  <h1>Fo-Gbâchi</h1>
+  <h1>Faut Gbâchi</h1>
   <p>On fait sport dèh !</p>
 </header>
 
@@ -208,31 +219,7 @@
     renderMeals();
   });
 
-    function figureType(name) {
-    const n = name.toLowerCase();
-    if (n.includes("squat") || n.includes("fente")) return "squat";
-    if (n.includes("pompe") || n.includes("dips")) return "pushup";
-    if (n.includes("crunch") || n.includes("relev") || n.includes("superman")) return "crunch";
-    if (n.includes("marche") || n.includes("course") || n.includes("montée")) return "run";
-    return "static";
-  }
-
-  function figureSVG(type) {
-    return `<svg class="fig fig-${type}" viewBox="0 0 120 160" width="90" height="120" aria-hidden="true">
-      <g class="body">
-        <g class="upper">
-          <circle cx="60" cy="26" r="11" fill="currentColor"/>
-          <line x1="60" y1="40" x2="60" y2="95" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-          <line x1="60" y1="50" x2="40" y2="78" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-          <line x1="60" y1="50" x2="80" y2="78" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-        </g>
-        <line x1="60" y1="95" x2="46" y2="150" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-        <line x1="60" y1="95" x2="74" y2="150" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-      </g>
-    </svg>`;
-  }
-
-    function figureType(name) {
+  function figureType(name) {
     const n = name.toLowerCase();
     if (n.includes("squat") || n.includes("fente")) return "squat";
     if (n.includes("pompe") || n.includes("dips")) return "pushup";
@@ -264,6 +251,8 @@
       box.className = "exo";
       const row = document.createElement("div");
       row.className = "exo-row";
+      const fig = document.createElement("div");
+      fig.innerHTML = figureSVG(figureType(ex.name));
       const info = document.createElement("div");
       const title = document.createElement("strong");
       title.textContent = ex.name;
@@ -275,13 +264,12 @@
           ul.appendChild(li);
         });
       info.append(title, ul);
-      const fig = document.createElement("div");
-      fig.innerHTML = figureSVG(figureType(ex.name));
       row.append(fig, info);
       box.appendChild(row);
       el.appendChild(box);
     });
   }
+
   function renderMeals() {
     const mealsEl = document.getElementById("meals");
     mealsEl.innerHTML = "";
@@ -395,43 +383,4 @@
 
   document.getElementById("open-calendar").addEventListener("click", openCalendar);
 
-  document.getElementById("save-calendar").addEventListener("click", async () => {
-    calStatus.textContent = "Enregistrement...";
-    try {
-      await setDoc(doc(db, "calendar", "week"), { days: calendarData });
-      calStatus.textContent = "Calendrier enregistré.";
-    } catch (e) {
-      calStatus.textContent = "Erreur : impossible d'enregistrer.";
-    }
-  });
-
-  // ---------- Rappels (tant que la page est ouverte) ----------
-  document.getElementById("enable-reminders").addEventListener("click", async () => {
-    if (!("Notification" in window)) {
-      calStatus.textContent = "Ton navigateur ne permet pas les notifications.";
-      return;
-    }
-    const result = await Notification.requestPermission();
-    calStatus.textContent = result === "granted"
-      ? "Rappels activés. Garde la page ouverte."
-      : "Notifications refusées. Tu peux les autoriser dans les réglages du navigateur.";
-  });
-
-  function checkReminders() {
-    if (!calendarData || !("Notification" in window) || Notification.permission !== "granted") return;
-    const now = new Date();
-    const dayIndex = (now.getDay() + 6) % 7;
-    const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-    const entry = calendarData[dayIndex];
-    if (!entry || entry.time !== hhmm || entry.activity === "Repos") return;
-    const key = now.toDateString() + hhmm;
-    if (notifiedKeys.has(key)) return;
-    notifiedKeys.add(key);
-    new Notification("Faut Gbâchi", { body: "C'est l'heure : " + entry.activity + " !" });
-  }
-
-  setInterval(checkReminders, 30000);
-</script>
-
-</body>
-</html>
+  document.getElem
