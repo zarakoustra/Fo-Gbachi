@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Faut Gbâchi</title>
+<title>Fo-Gbâchi</title>
 <style>
   :root { color-scheme: light dark; --bg:#f5f7f2; --card:#fff; --text:#1d2a1f; --muted:#5b6b5e; --accent:#2e7d32; --accent-soft:#e3f1e4; }
   @media (prefers-color-scheme: dark) {
@@ -15,15 +15,24 @@
   header h1 { margin:0; font-size:1.6rem; }
   header p { margin:4px 0 0; opacity:.9; }
   main { padding:16px; max-width:560px; margin:0 auto; }
+  h2 { font-size:1.2rem; margin:8px 0 12px; }
   .card { background:var(--card); border-radius:14px; padding:16px; margin-bottom:12px; }
-  .objective { width:100%; text-align:left; background:var(--card); color:var(--text); border:none; border-radius:14px; padding:14px 16px; margin-bottom:10px; font-size:1rem; cursor:pointer; }
-  .objective strong { display:block; font-size:1.05rem; }
+  .objective { width:100%; text-align:left; background:var(--card); color:var(--text); border:none; border-radius:14px; padding:14px 16px; margin-bottom:10px; font-size:1.05rem; font-weight:600; cursor:pointer; }
   .back { background:none; border:none; color:var(--accent); font-size:1rem; padding:8px 0; cursor:pointer; }
-  .label { font-size:.85rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px; }
+  .label { font-size:.85rem; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+  .exo { background:var(--accent-soft); border-radius:10px; padding:12px; margin-bottom:10px; }
+  .exo strong { display:block; margin-bottom:6px; }
+  .exo ul { margin:0 0 8px; padding-left:18px; font-size:.95rem; line-height:1.6; }
+  .video { display:inline-block; color:var(--accent); font-weight:600; text-decoration:none; font-size:.95rem; }
+  select, input[type=time] { font:inherit; padding:8px; border-radius:10px; border:1px solid var(--muted); background:var(--card); color:var(--text); }
+  select { width:100%; margin-bottom:12px; padding:10px; }
   .meal { display:flex; gap:10px; align-items:center; background:var(--accent-soft); border-radius:10px; padding:10px; margin-bottom:8px; }
   .time { font-weight:700; color:var(--accent); min-width:52px; }
-  .meal input { flex:1; font:inherit; padding:8px; border:1px solid var(--muted); border-radius:8px; background:var(--card); color:var(--text); }
+  .meal input[type=text] { flex:1; font:inherit; padding:8px; border:1px solid var(--muted); border-radius:8px; background:var(--card); color:var(--text); }
+  .day { display:grid; grid-template-columns: 90px 1fr 110px; gap:8px; align-items:center; margin-bottom:10px; }
+  .day select { margin-bottom:0; padding:8px; }
   .btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:12px; font-size:1rem; cursor:pointer; margin-top:8px; }
+  .btn.secondary { background:var(--card); color:var(--accent); border:1px solid var(--accent); }
   .btn:disabled { opacity:.6; }
   .status { font-size:.9rem; color:var(--muted); margin-top:8px; min-height:1.2em; }
   .disclaimer { font-size:.85rem; color:var(--muted); font-style:italic; margin-top:16px; }
@@ -33,7 +42,7 @@
 <body>
 
 <header>
-  <h1>Faut Gbâchi</h1>
+  <h1>Fo-Gbâchi</h1>
   <p>On fait sport dèh !</p>
 </header>
 
@@ -41,23 +50,38 @@
   <section id="home">
     <h2>Quelle zone veux-tu travailler ?</h2>
     <div id="objectives"></div>
+    <button class="btn secondary" id="open-calendar">Mon calendrier et mes rappels</button>
   </section>
 
   <section id="plan" class="hidden">
-    <button class="back" id="back">← Retour</button>
+    <button class="back" data-back>← Retour</button>
     <h2 id="plan-title"></h2>
     <div class="card">
-      <div class="label">Exercice</div>
-      <strong id="plan-exercise"></strong>
-      <p id="plan-details" style="margin:6px 0 0;"></p>
+      <div class="label">Programme d'exercices</div>
+      <div id="exercises"></div>
     </div>
     <div class="card">
+      <div class="label">Ton pays</div>
+      <select id="country"></select>
       <div class="label" id="meals-label"></div>
       <div id="meals"></div>
       <button class="btn" id="save">Enregistrer mes repas</button>
       <div class="status" id="status"></div>
     </div>
     <p class="disclaimer">Ces informations ne sont pas des conseils médicaux. Consulte un professionnel de santé avant de changer ton alimentation ou ton activité.</p>
+  </section>
+
+  <section id="calendar" class="hidden">
+    <button class="back" data-back>← Retour</button>
+    <h2>Mon calendrier</h2>
+    <div class="card">
+      <div class="label">Choisis ce que tu fais chaque jour</div>
+      <div id="days"></div>
+      <button class="btn" id="save-calendar">Enregistrer mon calendrier</button>
+      <button class="btn secondary" id="enable-reminders">Activer les rappels</button>
+      <div class="status" id="calendar-status"></div>
+    </div>
+    <p class="disclaimer">Les rappels ne fonctionnent que lorsque la page est ouverte dans le navigateur.</p>
   </section>
 </main>
 
@@ -76,31 +100,87 @@
 
   const db = getFirestore(initializeApp(firebaseConfig));
 
-  const mealsDefault = [
-    { time: "08:00", meal: "Petit-déjeuner à définir" },
-    { time: "13:00", meal: "Déjeuner à définir" },
-    { time: "19:30", meal: "Dîner à définir" }
-  ];
-
-  // Les 7 zones demandées. Exercices et repas à compléter ensuite.
-  const plans = {
-    abdos: { title:"Abdominaux", exercise:"Gainage + crunchs", details:"3 séries de 30 s de gainage, puis 3 x 15 crunchs.",
-      meals:[{time:"08:00",meal:"Flocons d'avoine, œufs, fruit"},{time:"13:00",meal:"Riz complet, poulet, légumes"},{time:"19:30",meal:"Poisson, patate douce, salade"}] },
-    bras_epaules: { title:"Bras et épaules", exercise:"Pompes + développé épaules", details:"3 séries de 10 pompes et 3 x 12 élévations latérales.", meals: mealsDefault },
-    jambes: { title:"Jambes", exercise:"Squats + fentes", details:"4 séries de 15 squats et 3 x 12 fentes par jambe.", meals: mealsDefault },
-    poitrine: { title:"Poitrine", exercise:"Pompes + écartés", details:"4 séries de 10 pompes et 3 x 12 écartés.", meals: mealsDefault },
-    dos: { title:"Dos", exercise:"Tirage + superman", details:"3 séries de 12 tirages et 3 x 15 superman.", meals: mealsDefault },
-    endurance: { title:"Endurance", exercise:"Course ou marche rapide", details:"25 à 30 min, 3 fois par semaine.", meals: mealsDefault },
-    condition: { title:"Condition physique générale", exercise:"Circuit complet", details:"3 tours : squats, pompes, gainage, montées de genoux.", meals: mealsDefault }
+  const countriesByRegion = {
+    "Afrique de l'Ouest": ["Bénin","Burkina Faso","Cap-Vert","Côte d'Ivoire","Gambie","Ghana","Guinée","Guinée-Bissau","Libéria","Mali","Mauritanie","Niger","Nigeria","Sénégal","Sierra Leone","Togo"],
+    "Afrique centrale": ["Angola","Burundi","Cameroun","Congo","République démocratique du Congo","Gabon","Guinée équatoriale","Rwanda","Sao Tomé-et-Principe","Tchad","République centrafricaine"],
+    "Afrique de l'Est": ["Comores","Djibouti","Érythrée","Éthiopie","Kenya","Madagascar","Malawi","Maurice","Mozambique","Ouganda","Seychelles","Somalie","Soudan","Soudan du Sud","Tanzanie","Zambie","Zimbabwe"],
+    "Afrique du Nord": ["Algérie","Égypte","Libye","Maroc","Tunisie"],
+    "Afrique australe": ["Afrique du Sud","Botswana","Eswatini","Lesotho","Namibie"],
+    "Europe": ["Albanie","Allemagne","Andorre","Arménie","Autriche","Azerbaïdjan","Biélorussie","Belgique","Bosnie-Herzégovine","Bulgarie","Chypre","Croatie","Danemark","Espagne","Estonie","Finlande","France","Géorgie","Grèce","Hongrie","Irlande","Islande","Italie","Lettonie","Liechtenstein","Lituanie","Luxembourg","Macédoine du Nord","Malte","Moldavie","Monaco","Monténégro","Norvège","Pays-Bas","Pologne","Portugal","Roumanie","Royaume-Uni","Russie","Saint-Marin","Serbie","Slovaquie","Slovénie","Suède","Suisse","Tchéquie","Ukraine"],
+    "Asie": ["Afghanistan","Arabie saoudite","Bahreïn","Bangladesh","Bhoutan","Birmanie","Brunei","Cambodge","Chine","Corée du Nord","Corée du Sud","Émirats arabes unis","Inde","Indonésie","Irak","Iran","Israël","Japon","Jordanie","Kazakhstan","Kirghizistan","Koweït","Laos","Liban","Malaisie","Maldives","Mongolie","Népal","Oman","Ouzbékistan","Pakistan","Palestine","Philippines","Qatar","Singapour","Sri Lanka","Syrie","Tadjikistan","Thaïlande","Timor oriental","Turkménistan","Turquie","Vietnam","Yémen"],
+    "Amériques": ["Antigua-et-Barbuda","Argentine","Bahamas","Barbade","Belize","Bolivie","Brésil","Canada","Chili","Colombie","Costa Rica","Cuba","Dominique","Équateur","États-Unis","Grenade","Guatemala","Guyana","Haïti","Honduras","Jamaïque","Mexique","Nicaragua","Panama","Paraguay","Pérou","République dominicaine","Saint-Christophe-et-Niévès","Sainte-Lucie","Saint-Vincent-et-les-Grenadines","Salvador","Suriname","Trinité-et-Tobago","Uruguay","Venezuela"],
+    "Océanie": ["Australie","Fidji","Îles Marshall","Îles Salomon","Kiribati","Micronésie","Nauru","Nouvelle-Zélande","Palaos","Papouasie-Nouvelle-Guinée","Samoa","Tonga","Tuvalu","Vanuatu"]
   };
 
-  const home = document.getElementById("home");
-  const planSection = document.getElementById("plan");
-  const statusEl = document.getElementById("status");
-  let currentId = null;
-  let currentMeals = [];
+  const mealsByRegion = {
+    "Afrique de l'Ouest": [{time:"08:00",meal:"Bouillie de mil ou akassa, œufs, fruit"},{time:"13:00",meal:"Riz, poisson grillé, légumes"},{time:"19:30",meal:"Igname ou haricots, légumes verts"}],
+    "Afrique centrale": [{time:"08:00",meal:"Bouillie de maïs, banane plantain, œufs"},{time:"13:00",meal:"Manioc ou riz, poisson, légumes"},{time:"19:30",meal:"Haricots, légumes, fruit"}],
+    "Afrique de l'Est": [{time:"08:00",meal:"Porridge, banane, œufs"},{time:"13:00",meal:"Ugali ou riz, haricots, légumes"},{time:"19:30",meal:"Poisson ou poulet, légumes"}],
+    "Afrique du Nord": [{time:"08:00",meal:"Pain complet, fromage blanc, fruit"},{time:"13:00",meal:"Couscous ou riz, poulet, légumes"},{time:"19:30",meal:"Soupe de légumes, œuf, pain complet"}],
+    "Afrique australe": [{time:"08:00",meal:"Porridge, œufs, fruit"},{time:"13:00",meal:"Maïs (pap), viande maigre, légumes"},{time:"19:30",meal:"Poisson, patate douce, salade"}],
+    "Europe": [{time:"08:00",meal:"Flocons d'avoine, yaourt, fruit"},{time:"13:00",meal:"Pâtes complètes, poulet, légumes"},{time:"19:30",meal:"Poisson, pommes de terre, salade"}],
+    "Asie": [{time:"08:00",meal:"Riz complet, œufs, fruit"},{time:"13:00",meal:"Riz, tofu ou poisson, légumes"},{time:"19:30",meal:"Nouilles complètes, légumes, poulet"}],
+    "Amériques": [{time:"08:00",meal:"Flocons d'avoine, fruit, œufs"},{time:"13:00",meal:"Riz, haricots, poulet, salade"},{time:"19:30",meal:"Poisson, patate douce, légumes"}],
+    "Océanie": [{time:"08:00",meal:"Porridge, fruit tropical, yaourt"},{time:"13:00",meal:"Poisson, légumes, riz ou taro"},{time:"19:30",meal:"Poulet, patate douce, salade"}]
+  };
 
-  // Crée les boutons à partir de la liste des zones
+  const plans = {
+    abdos: { title:"Abdominaux", exercises:[
+      { name:"Gainage", sets:3, reps:"30 s", duration:"30 s", rest:"30 s" },
+      { name:"Crunchs", sets:3, reps:"15", duration:"5 min", rest:"45 s" },
+      { name:"Relevés de jambes", sets:3, reps:"12", duration:"5 min", rest:"45 s" }
+    ]},
+    bras_epaules: { title:"Bras et épaules", exercises:[
+      { name:"Pompes", sets:3, reps:"10", duration:"5 min", rest:"60 s" },
+      { name:"Élévations latérales", sets:3, reps:"12", duration:"5 min", rest:"45 s" },
+      { name:"Dips sur chaise", sets:3, reps:"10", duration:"5 min", rest:"60 s" }
+    ]},
+    jambes: { title:"Jambes", exercises:[
+      { name:"Squats", sets:4, reps:"15", duration:"8 min", rest:"60 s" },
+      { name:"Fentes", sets:3, reps:"12 par jambe", duration:"6 min", rest:"60 s" },
+      { name:"Pont fessier", sets:3, reps:"15", duration:"4 min", rest:"45 s" }
+    ]},
+    poitrine: { title:"Poitrine", exercises:[
+      { name:"Pompes", sets:4, reps:"10", duration:"6 min", rest:"60 s" },
+      { name:"Écartés avec bouteilles", sets:3, reps:"12", duration:"5 min", rest:"45 s" },
+      { name:"Pompes inclinées", sets:3, reps:"12", duration:"5 min", rest:"60 s" }
+    ]},
+    dos: { title:"Dos", exercises:[
+      { name:"Superman", sets:3, reps:"15", duration:"4 min", rest:"30 s" },
+      { name:"Tirage horizontal (élastique)", sets:3, reps:"12", duration:"5 min", rest:"60 s" },
+      { name:"Rowing avec bouteilles", sets:3, reps:"12", duration:"5 min", rest:"60 s" }
+    ]},
+    endurance: { title:"Endurance", exercises:[
+      { name:"Marche rapide ou course légère", sets:1, reps:"-", duration:"25 à 30 min", rest:"-" },
+      { name:"Montées de genoux", sets:3, reps:"30 s", duration:"3 min", rest:"30 s" }
+    ]},
+    condition: { title:"Condition physique générale", exercises:[
+      { name:"Squats", sets:3, reps:"15", duration:"5 min", rest:"45 s" },
+      { name:"Pompes", sets:3, reps:"10", duration:"5 min", rest:"45 s" },
+      { name:"Gainage", sets:3, reps:"30 s", duration:"3 min", rest:"30 s" },
+      { name:"Montées de genoux", sets:3, reps:"30 s", duration:"3 min", rest:"30 s" }
+    ]}
+  };
+
+  const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+  const statusEl = document.getElementById("status");
+  const calStatus = document.getElementById("calendar-status");
+  const countrySelect = document.getElementById("country");
+  let currentId = null;
+  let currentRegion = null;
+  let currentMeals = [];
+  let calendarData = null;
+  const notifiedKeys = new Set();
+
+  function showView(name) {
+    ["home","plan","calendar"].forEach(v => {
+      document.getElementById(v).classList.toggle("hidden", v !== name);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => showView("home")));
+
   const objectivesEl = document.getElementById("objectives");
   Object.entries(plans).forEach(([id, p]) => {
     const btn = document.createElement("button");
@@ -110,9 +190,57 @@
     objectivesEl.appendChild(btn);
   });
 
+  Object.entries(countriesByRegion).forEach(([region, list]) => {
+    const group = document.createElement("optgroup");
+    group.label = region;
+    list.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = region;
+      opt.textContent = name;
+      group.appendChild(opt);
+    });
+    countrySelect.appendChild(group);
+  });
+
+  countrySelect.addEventListener("change", () => {
+    currentRegion = countrySelect.value;
+    currentMeals = JSON.parse(JSON.stringify(mealsByRegion[currentRegion]));
+    renderMeals();
+  });
+
+  function renderExercises(exercises) {
+    const el = document.getElementById("exercises");
+    el.innerHTML = "";
+    exercises.forEach(ex => {
+      const box = document.createElement("div");
+      box.className = "exo";
+      const title = document.createElement("strong");
+      title.textContent = ex.name;
+      const ul = document.createElement("ul");
+      ["Séries : " + ex.sets, "Répétitions : " + ex.reps, "Durée : " + ex.duration, "Repos : " + ex.rest]
+        .forEach(txt => {
+          const li = document.createElement("li");
+          li.textContent = txt;
+          ul.appendChild(li);
+        });
+      const video = document.createElement("a");
+      video.className = "video";
+      video.textContent = "▶ Voir une vidéo";
+      video.href = "https://www.youtube.com/results?search_query=" + encodeURIComponent(ex.name + " exercice");
+      video.target = "_blank";
+      video.rel = "noopener";
+      box.append(title, ul, video);
+      el.appendChild(box);
+    });
+  }
+
   function renderMeals() {
     const mealsEl = document.getElementById("meals");
     mealsEl.innerHTML = "";
+    if (!currentMeals.length) {
+      document.getElementById("meals-label").textContent = "Choisis ton pays pour voir les repas";
+      return;
+    }
     currentMeals.forEach((m, i) => {
       const row = document.createElement("div");
       row.className = "meal";
@@ -133,42 +261,128 @@
     currentId = id;
     const p = plans[id];
     document.getElementById("plan-title").textContent = p.title;
-    document.getElementById("plan-exercise").textContent = p.exercise;
-    document.getElementById("plan-details").textContent = p.details;
+    renderExercises(p.exercises);
     statusEl.textContent = "Chargement...";
-    home.classList.add("hidden");
-    planSection.classList.remove("hidden");
-    window.scrollTo(0, 0);
+    showView("plan");
 
     try {
       const snap = await getDoc(doc(db, "plans", id));
-      currentMeals = snap.exists() ? snap.data().meals : JSON.parse(JSON.stringify(p.meals));
+      if (snap.exists()) {
+        currentRegion = snap.data().region;
+        currentMeals = snap.data().meals;
+        countrySelect.value = currentRegion;
+      } else {
+        currentRegion = null;
+        currentMeals = [];
+        countrySelect.selectedIndex = 0;
+      }
       statusEl.textContent = "";
     } catch (e) {
-      currentMeals = JSON.parse(JSON.stringify(p.meals));
-      statusEl.textContent = "Impossible de charger tes repas. Affichage des repas de base.";
+      statusEl.textContent = "Impossible de charger tes repas.";
     }
     renderMeals();
   }
 
-  document.getElementById("back").addEventListener("click", () => {
-    planSection.classList.add("hidden");
-    home.classList.remove("hidden");
-    window.scrollTo(0, 0);
-  });
-
   document.getElementById("save").addEventListener("click", async () => {
     const btn = document.getElementById("save");
+    if (!currentRegion) {
+      statusEl.textContent = "Choisis d'abord ton pays.";
+      return;
+    }
     btn.disabled = true;
     statusEl.textContent = "Enregistrement...";
     try {
-      await setDoc(doc(db, "plans", currentId), { meals: currentMeals });
+      await setDoc(doc(db, "plans", currentId), { region: currentRegion, meals: currentMeals });
       statusEl.textContent = "Repas enregistrés.";
     } catch (e) {
       statusEl.textContent = "Erreur : impossible d'enregistrer.";
     }
     btn.disabled = false;
   });
+
+  // ---------- Calendrier ----------
+  const activityOptions = ["Repos", "Séance complète", ...Object.values(plans).map(p => p.title)];
+
+  function renderDays(days) {
+    const el = document.getElementById("days");
+    el.innerHTML = "";
+    days.forEach((d, i) => {
+      const row = document.createElement("div");
+      row.className = "day";
+      const name = document.createElement("span");
+      name.textContent = DAYS[i];
+      const sel = document.createElement("select");
+      activityOptions.forEach(a => {
+        const o = document.createElement("option");
+        o.value = a;
+        o.textContent = a;
+        if (a === d.activity) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener("change", () => { calendarData[i].activity = sel.value; });
+      const time = document.createElement("input");
+      time.type = "time";
+      time.value = d.time;
+      time.addEventListener("change", () => { calendarData[i].time = time.value; });
+      row.append(name, sel, time);
+      el.appendChild(row);
+    });
+  }
+
+  async function openCalendar() {
+    showView("calendar");
+    calStatus.textContent = "Chargement...";
+    try {
+      const snap = await getDoc(doc(db, "calendar", "week"));
+      calendarData = snap.exists() ? snap.data().days : null;
+    } catch (e) {
+      calendarData = null;
+    }
+    if (!calendarData) {
+      calendarData = DAYS.map(() => ({ activity: "Repos", time: "08:00" }));
+    }
+    renderDays(calendarData);
+    calStatus.textContent = "";
+  }
+
+  document.getElementById("open-calendar").addEventListener("click", openCalendar);
+
+  document.getElementById("save-calendar").addEventListener("click", async () => {
+    calStatus.textContent = "Enregistrement...";
+    try {
+      await setDoc(doc(db, "calendar", "week"), { days: calendarData });
+      calStatus.textContent = "Calendrier enregistré.";
+    } catch (e) {
+      calStatus.textContent = "Erreur : impossible d'enregistrer.";
+    }
+  });
+
+  // ---------- Rappels (tant que la page est ouverte) ----------
+  document.getElementById("enable-reminders").addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      calStatus.textContent = "Ton navigateur ne permet pas les notifications.";
+      return;
+    }
+    const result = await Notification.requestPermission();
+    calStatus.textContent = result === "granted"
+      ? "Rappels activés. Garde la page ouverte."
+      : "Notifications refusées. Tu peux les autoriser dans les réglages du navigateur.";
+  });
+
+  function checkReminders() {
+    if (!calendarData || !("Notification" in window) || Notification.permission !== "granted") return;
+    const now = new Date();
+    const dayIndex = (now.getDay() + 6) % 7;
+    const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    const entry = calendarData[dayIndex];
+    if (!entry || entry.time !== hhmm || entry.activity === "Repos") return;
+    const key = now.toDateString() + hhmm;
+    if (notifiedKeys.has(key)) return;
+    notifiedKeys.add(key);
+    new Notification("Faut Gbâchi", { body: "C'est l'heure : " + entry.activity + " !" });
+  }
+
+  setInterval(checkReminders, 30000);
 </script>
 
 </body>
