@@ -208,12 +208,63 @@
     renderMeals();
   });
 
+    function figureType(name) {
+    const n = name.toLowerCase();
+    if (n.includes("squat") || n.includes("fente")) return "squat";
+    if (n.includes("pompe") || n.includes("dips")) return "pushup";
+    if (n.includes("crunch") || n.includes("relev") || n.includes("superman")) return "crunch";
+    if (n.includes("marche") || n.includes("course") || n.includes("montée")) return "run";
+    return "static";
+  }
+
+  function figureSVG(type) {
+    return `<svg class="fig fig-${type}" viewBox="0 0 120 160" width="90" height="120" aria-hidden="true">
+      <g class="body">
+        <g class="upper">
+          <circle cx="60" cy="26" r="11" fill="currentColor"/>
+          <line x1="60" y1="40" x2="60" y2="95" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+          <line x1="60" y1="50" x2="40" y2="78" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+          <line x1="60" y1="50" x2="80" y2="78" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        </g>
+        <line x1="60" y1="95" x2="46" y2="150" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+        <line x1="60" y1="95" x2="74" y2="150" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      </g>
+    </svg>`;
+  }
+
+    function figureType(name) {
+    const n = name.toLowerCase();
+    if (n.includes("squat") || n.includes("fente")) return "squat";
+    if (n.includes("pompe") || n.includes("dips")) return "pushup";
+    if (n.includes("crunch") || n.includes("relev") || n.includes("superman")) return "crunch";
+    if (n.includes("marche") || n.includes("course") || n.includes("montée")) return "run";
+    return "static";
+  }
+
+  function figureSVG(type) {
+    return `<svg class="fig fig-${type}" viewBox="0 0 120 160" width="90" height="120" aria-hidden="true">
+      <g class="body">
+        <g class="upper">
+          <circle cx="60" cy="26" r="11" fill="currentColor"/>
+          <line x1="60" y1="40" x2="60" y2="95" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+          <line x1="60" y1="50" x2="40" y2="78" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+          <line x1="60" y1="50" x2="80" y2="78" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        </g>
+        <line x1="60" y1="95" x2="46" y2="150" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+        <line x1="60" y1="95" x2="74" y2="150" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      </g>
+    </svg>`;
+  }
+
   function renderExercises(exercises) {
     const el = document.getElementById("exercises");
     el.innerHTML = "";
     exercises.forEach(ex => {
       const box = document.createElement("div");
       box.className = "exo";
+      const row = document.createElement("div");
+      row.className = "exo-row";
+      const info = document.createElement("div");
       const title = document.createElement("strong");
       title.textContent = ex.name;
       const ul = document.createElement("ul");
@@ -223,17 +274,14 @@
           li.textContent = txt;
           ul.appendChild(li);
         });
-      const video = document.createElement("a");
-      video.className = "video";
-      video.textContent = "▶ Voir une vidéo";
-      video.href = "https://www.youtube.com/results?search_query=" + encodeURIComponent(ex.name + " exercice");
-      video.target = "_blank";
-      video.rel = "noopener";
-      box.append(title, ul, video);
+      info.append(title, ul);
+      const fig = document.createElement("div");
+      fig.innerHTML = figureSVG(figureType(ex.name));
+      row.append(fig, info);
+      box.appendChild(row);
       el.appendChild(box);
     });
   }
-
   function renderMeals() {
     const mealsEl = document.getElementById("meals");
     mealsEl.innerHTML = "";
