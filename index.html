@@ -53,7 +53,7 @@
 <body>
 
 <header>
-  <h1>Faut Gbâchi</h1>
+  <h1>Fo-Gbâchi</h1>
   <p>On fait sport dèh !</p>
 </header>
 
@@ -63,27 +63,37 @@
     <div id="objectives"></div>
     <button class="btn secondary" id="open-calendar">Mon calendrier et mes rappels</button>
   </section>
-
   <section id="plan" class="hidden">
     <button class="back" data-back>← Retour</button>
     <h2 id="plan-title"></h2>
     <div class="card">
      <div class="label">Temps disponible</div>
       <select id="duration">
-        <option value="15">15 min</option>
-        <option value="30" selected>30 min</option>
-        <option value="45">45 min</option>
+       <option value="15">15 min</option>
+      <option value="30" selected>30 min</option>
+      <option value="45">45 min</option>
       </select>
-      <div class="label">Programme d'exercices</div>
-      <div id="exercises"></div>
+      <div class="label">Matériel</div>
+      <select id="material">
+      <option value="none" selected>Pas de matériel</option>
+     <option value="home">Objets de la maison</option>
+     <option value="gym">Salle de sport</option>
+    </select>
+    <div class="label">Programme d'exercices</div>
+    <div id="exercises"></div>
     </div>
     <div class="card">
-      <div class="label">Ton pays</div>
-      <select id="country"></select>
-      <div class="label" id="meals-label"></div>
-      <div id="meals"></div>
-      <button class="btn" id="save">Enregistrer mes repas</button>
-      <div class="status" id="status"></div>
+   <div class="label">Ton pays</div>
+    <select id="country"></select>
+    <div class="label">Budget</div>
+    <select id="budget">
+    <option value="normal" selected>Budget normal</option>
+    <option value="serre">Budget serré (aliments accessibles)</option>
+    </select>
+    <div class="label" id="meals-label"></div>
+    <div id="meals"></div>
+    <button class="btn" id="save">Enregistrer mes repas</button>
+    <div class="status" id="status"></div>
     </div>
     <p class="disclaimer">Ces informations ne sont pas des conseils médicaux. Consulte un professionnel de santé avant de changer ton alimentation ou ton activité.</p>
   </section>
@@ -266,11 +276,10 @@
     });
     countrySelect.appendChild(group);
   });
-
   countrySelect.addEventListener("change", () => {
-    currentCountry = countrySelect.value;
-    currentRegion = countryRegion[currentCountry] || null;
-    currentMeals = currentRegion ? JSON.parse(JSON.stringify(mealsByRegion[currentRegion])) : [];
+  currentCountry = countrySelect.value;
+  currentRegion = countryRegion[currentCountry] || null;
+   currentMeals = currentRegion ? buildMeals(currentRegion) : [];
     renderMeals();
   });
     function makeFigure(type) {
@@ -394,7 +403,7 @@
     currentId = id;
     const p = plans[id];
     document.getElementById("plan-title").textContent = p.title;
-    renderExercises(p.exercises);
+    renderExercises(pickExercises(p.exercises, currentDuration));
     statusEl.textContent = "Chargement...";
     showView("plan");
 
@@ -438,7 +447,81 @@
       console.error(e);
     }
   });
+  let currentDuration = 30;
 
+  function parseMinutes(str) {
+    const n = parseFloat(str);
+    if (isNaN(n)) return 0;
+    return str.includes("min") ? n : n / 60;
+  }
+  let currentMaterial = "none";
+
+  const MATERIAL_NEEDS = {
+    "Tirage horizontal (élastique)": "home",
+    "Rowing avec bouteilles": "home",
+    "Écartés avec bouteilles": "home",
+    "Dips sur chaise": "home",
+    "Pompes inclinées": "home"
+  };
+
+  const LEVEL = { none: 0, home: 1, gym: 2 };
+
+  function allowedWithMaterial(ex) {
+    const need = MATERIAL_NEEDS[ex.name] || "none";
+    return LEVEL[need] <= LEVEL[currentMaterial];
+  }
+
+  function pickExercises(exercises, maxMin) {
+    const usable = exercises.filter(allowedWithMaterial);
+    const kept = [];
+    let total = 0;
+    for (const ex of usable) {
+      const t = parseMinutes(ex.duration);
+      if (total + t <= maxMin) {
+        kept.push(ex);
+        total += t;
+      }
+    }
+    if (kept.length) return kept;
+    if (usable.length) return usable.slice(0, 1);
+    return exercises.slice(0, 1);
+  }
+
+  document.getElementById("material").addEventListener("change", e => {
+    currentMaterial = e.target.value;
+    if (currentId) renderExercises(pickExercises(plans[currentId].exercises, currentDuration));
+  });
+    let currentBudget = "normal";
+
+  const CHEAPER = [
+    [/\bnoix de coco\b/gi, "banane"],
+    [/\b(noix|amandes|edamame ou noix)\b/gi, "arachides nature"],
+    [/\b(yaourt|fromage blanc)\b/gi, "lait caillé"],
+    [/\bdattes\b/gi, "banane"],
+    [/\bpoisson grillé\b/gi, "poisson fumé ou sardines"]
+  ];
+
+  function buildMeals(region) {
+    const meals = JSON.parse(JSON.stringify(mealsByRegion[region]));
+    if (currentBudget === "serre") {
+      meals.forEach(m => {
+        CHEAPER.forEach(([re, rep]) => { m.meal = m.meal.replace(re, rep); });
+      });
+    }
+    return meals;
+  }
+
+  document.getElementById("budget").addEventListener("change", e => {
+    currentBudget = e.target.value;
+    if (currentRegion) {
+      currentMeals = buildMeals(currentRegion);
+      renderMeals();
+    }
+  });
+  document.getElementById("duration").addEventListener("change", e => {
+    currentDuration = Number(e.target.value);
+    if (currentId) renderExercises(pickExercises(plans[currentId].exercises, currentDuration));
+  });
   let calendarData = null;
 
   function renderCalendar() {
