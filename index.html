@@ -81,8 +81,7 @@
     </div>
     <p class="disclaimer">Ces informations ne sont pas des conseils médicaux. Consulte un professionnel de santé avant de changer ton alimentation ou ton activité.</p>
   </section>
-
-  <section id="calendar" class="hidden">
+    <section id="calendar" class="hidden">
     <button class="back" data-back>← Retour</button>
     <h2>Mon calendrier</h2>
     <div class="card">
@@ -223,6 +222,7 @@
   const calStatus = document.getElementById("calendar-status");
   const countrySelect = document.getElementById("country");
   let currentId = null;
+  let currentCountry = null;
   let currentRegion = null;
   let currentMeals = [];
   let calendarData = null;
@@ -246,12 +246,15 @@
     objectivesEl.appendChild(btn);
   });
 
+  const countryRegion = {};
+  countrySelect.innerHTML = '<option value="">Choisis ton pays</option>';
   Object.entries(countriesByRegion).forEach(([region, list]) => {
     const group = document.createElement("optgroup");
     group.label = region;
     list.forEach(name => {
+      countryRegion[name] = region;
       const opt = document.createElement("option");
-      opt.value = region;
+      opt.value = name;
       opt.textContent = name;
       group.appendChild(opt);
     });
@@ -259,12 +262,12 @@
   });
 
   countrySelect.addEventListener("change", () => {
-    currentRegion = countrySelect.value;
-    currentMeals = JSON.parse(JSON.stringify(mealsByRegion[currentRegion]));
+    currentCountry = countrySelect.value;
+    currentRegion = countryRegion[currentCountry] || null;
+    currentMeals = currentRegion ? JSON.parse(JSON.stringify(mealsByRegion[currentRegion])) : [];
     renderMeals();
   });
-
-  function makeFigure(type) {
+    function makeFigure(type) {
     const NS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(NS, "svg");
     svg.setAttribute("viewBox", "0 0 120 160");
@@ -392,6 +395,137 @@
     try {
       const snap = await getDoc(doc(db, "plans", id));
       if (snap.exists()) {
-        currentRegion = snap.data().region;
-        currentMeals = snap.data().meals;
-        countryS
+        const data = snap.data();
+        currentCountry = data.country;
+        currentRegion = data.region;
+        currentMeals = data.meals;
+        countrySelect.value = currentCountry;
+      } else {
+        currentCountry = null;
+        currentRegion = null;
+        currentMeals = [];
+        countrySelect.value = "";
+      }
+      renderMeals();
+      statusEl.textContent = "";
+    } catch (e) {
+      statusEl.textContent = "Impossible de charger tes repas.";
+      console.error(e);
+    }
+  }
+    document.getElementById("save").addEventListener("click", async () => {
+    if (!currentId) return;
+    if (!currentRegion) {
+      statusEl.textContent = "Choisis d'abord ton pays.";
+      return;
+    }
+    statusEl.textContent = "Enregistrement...";
+    try {
+      await setDoc(doc(db, "plans", currentId), {
+        country: currentCountry,
+        region: currentRegion,
+        meals: currentMeals
+      });
+      statusEl.textContent = "Repas enregistrés ✔";
+    } catch (e) {
+      statusEl.textContent = "Erreur d'enregistrement.";
+      console.error(e);
+    }
+  });
+
+  let calendarData = null;
+
+  function renderCalendar() {
+    const daysEl = document.getElementById("days");
+    daysEl.innerHTML = "";
+    const planOptions = Object.entries(plans)
+      .map(([id, p]) => `<option value="${id}">${p.title}</option>`)
+      .join("");
+
+    DAYS.forEach(day => {
+      const entry = calendarData[day] || { plan: "", time: "" };
+      const row = document.createElement("div");
+      row.className = "day";
+
+      const name = document.createElement("span");
+      name.textContent = day;
+
+      const sel = document.createElement("select");
+      sel.innerHTML = '<option value="">Repos</option>' + planOptions;
+      sel.value = entry.plan;
+
+      const time = document.createElement("input");
+      time.type = "time";
+      time.value = entry.time;
+
+      const update = () => {
+        calendarData[day] = { plan: sel.value, time: time.value };
+      };
+      sel.addEventListener("change", update);
+      time.addEventListener("change", update);
+
+      row.append(name, sel, time);
+      daysEl.appendChild(row);
+    });
+  }
+
+  async function loadCalendar() {
+    try {
+      const snap = await getDoc(doc(db, "calendar", "principal"));
+      calendarData = snap.exists() ? snap.data() : {};
+    } catch (e) {
+      calendarData = {};
+      console.error(e);
+    }
+    renderCalendar();
+  }
+
+  document.getElementById("open-calendar").addEventListener("click", () => {
+    showView("calendar");
+    if (calendarData === null) {
+      loadCalendar();
+    } else {
+      renderCalendar();
+    }
+  });
+
+  document.getElementById("save-calendar").addEventListener("click", async () => {
+    try {
+      await setDoc(doc(db, "calendar", "principal"), calendarData);
+      calStatus.textContent = "Calendrier enregistré ✔";
+    } catch (e) {
+      calStatus.textContent = "Erreur d'enregistrement.";
+      console.error(e);
+    }
+  });
+
+  document.getElementById("enable-reminders").addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      calStatus.textContent = "Ton navigateur ne gère pas les notifications.";
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    calStatus.textContent = perm === "granted"
+      ? "Rappels activés ✔"
+      : "Notifications refusées.";
+  });
+
+  setInterval(() => {
+    if (!calendarData || !("Notification" in window) || Notification.permission !== "granted") return;
+    const now = new Date();
+    const day = DAYS[(now.getDay() + 6) % 7];
+    const hm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    const entry = calendarData[day];
+    if (!entry || !entry.plan || entry.time !== hm) return;
+
+    const key = now.toDateString() + day + hm;
+    if (notifiedKeys.has(key)) return;
+    notifiedKeys.add(key);
+
+    new Notification("Faut Gbâchi", {
+      body: "C'est l'heure : " + plans[entry.plan].title + " 💪"
+    });
+  }, 30000);
+</script>
+</body>
+</html>
